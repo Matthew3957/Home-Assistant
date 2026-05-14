@@ -1,0 +1,46 @@
+# overlays/packages/test_helpers.yaml
+#
+# Helper entities the LLM can read and (in the case of input_text) write to.
+# These let you test things like:
+#   "What's on my shopping list?"
+#   "When's my next appointment?"
+#   "Add eggs to the shopping list."
+
+# ---------------------------------------------------------------------------
+# Shopping list
+# ---------------------------------------------------------------------------
+# input_text is single-line by design — Assist's LLM tool surface lets the
+# model overwrite the value, so for testing "add X to shopping list" you'll
+# typically see the model rewrite the whole comma-separated string. That's
+# fine for a smoke test. Move to the `todo` integration later if you want
+# real list semantics.
+input_text:
+  shopping_list:
+    name: "Shopping list"
+    icon: mdi:cart
+    max: 255
+    initial: "milk, bread, coffee"
+
+# ---------------------------------------------------------------------------
+# Upcoming events
+# ---------------------------------------------------------------------------
+# input_datetime entries stand in for calendar events. Each is a single
+# fixed timestamp; the LLM can read them but cannot create new ones (would
+# need the `calendar` integration for that). The `initial:` values are ISO
+# datetimes — adjust to whatever's "upcoming" relative to your current date.
+input_datetime:
+  next_dentist_appt:
+    name: "Next dentist appointment"
+    has_date: true
+    has_time: true
+    initial: "2026-05-21 09:30:00"
+  next_trash_pickup:
+    name: "Next trash pickup"
+    has_date: true
+    has_time: true
+    initial: "2026-05-15 07:00:00"
+  partner_flight:
+    name: "Partner's flight home"
+    has_date: true
+    has_time: true
+    initial: "2026-05-18 18:45:00"

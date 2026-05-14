@@ -1,0 +1,27 @@
+# Home Assistant container for the Ollama LLM testbed.
+#
+# Design notes:
+# - host network mode is REQUIRED. mDNS/SSDP/Zeroconf-based device discovery
+#   silently breaks on bridge networks, and host mode also lets HA reach the
+#   Ollama daemon at plain "localhost:11434" with no extra plumbing.
+# - Bind-mounting ./homeassistant-config preserves the SQLite DB, secrets,
+#   auth, and YAML config across `docker compose down` and host reboots.
+# - We pin to the `stable` rolling tag rather than a specific version so the
+#   testbed tracks current HA. If you want reproducibility, replace `stable`
+#   with a concrete tag like `2024.10.4`.
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: homeassistant/home-assistant:stable
+    restart: unless-stopped
+    # host networking: HA binds 8123 directly on the host; no `ports:` needed.
+    network_mode: host
+    volumes:
+      # /config is HA's canonical config directory inside the container.
+      - ./homeassistant-config:/config
+      # /etc/localtime keeps container clock aligned with the host (some
+      # automations care about this even though TZ below is the source of truth).
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      # Drives sun.sun, sensor.time, scheduling helpers, etc.
+      TZ: America/Los_Angeles
