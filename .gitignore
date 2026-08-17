@@ -1,0 +1,21 @@
+# Local secrets — never commit. Token lives in here after configure_assist.sh.
+.env
+
+# Home Assistant's persistent state. Created by bootstrap.sh on first run.
+# Contains the SQLite DB, secrets, auth, generated config, etc. Not source.
+homeassistant-config/
+
+# Python artifacts (test_pipeline.py + future bake-off harness)
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp

@@ -1,0 +1,54 @@
+# overlays/configuration_additions.yaml
+#
+# Lines that get APPENDED to homeassistant-config/configuration.yaml after
+# initial onboarding. configure_assist.sh handles the merge — it skips this
+# block if it sees the marker comment below, so re-running is safe.
+#
+# Keep this file under 100 lines; it is meant to be read top-to-bottom.
+
+# >>> ollama-testbed: appended by configure_assist.sh — do not edit this marker
+# (configure_assist.sh greps for the marker above to decide whether to append.)
+
+# ---------------------------------------------------------------------------
+# Conversation integration
+# ---------------------------------------------------------------------------
+# `conversation:` enables the Assist text-input pipeline and the
+# /api/conversation/process REST endpoint that test_pipeline.py uses.
+# It is enabled by default in modern HA via `default_config:`, but listing
+# it explicitly is harmless and makes intent obvious.
+conversation:
+
+# ---------------------------------------------------------------------------
+# Logger — surface what the LLM is actually doing
+# ---------------------------------------------------------------------------
+# Bumping the ollama integration to info shows model selection, prompt sizes,
+# and tool calls in the container logs. Crank the relevant ones to debug if
+# you need to see full prompts and raw responses.
+logger:
+  default: warning
+  logs:
+    homeassistant.components.ollama: info
+    homeassistant.components.conversation: info
+    homeassistant.components.assist_pipeline: info
+
+# ---------------------------------------------------------------------------
+# Top-level homeassistant: block
+# ---------------------------------------------------------------------------
+# Combines two unrelated concerns under one key, because YAML disallows
+# duplicate top-level keys in the same file:
+#   1. `packages:` — pull in everything under homeassistant-config/packages/.
+#      That's where test_devices.yaml and test_helpers.yaml live.
+#   2. `customize:` — friendly_name overrides for the demo media_players,
+#      whose default names ("Bedroom", "Living Room", etc.) are ambiguous
+#      to the LLM. Renaming as "Kitchen speaker" etc. tightens its grounding.
+#      If your HA version's demo platform doesn't create one of these
+#      entity_ids, the customize entry is silently ignored — harmless.
+homeassistant:
+  packages: !include_dir_named packages
+  customize:
+    media_player.kitchen:
+      friendly_name: "Kitchen speaker"
+    media_player.living_room:
+      friendly_name: "Living room speaker"
+    media_player.bedroom:
+      friendly_name: "Bedroom speaker"

@@ -1,0 +1,6 @@
+# Pinned to minor versions — bumps are deliberate.
+# websockets: needed by ha_api_helper.py for HA's WebSocket API
+#   (config flow, pipeline create, entity expose).
+# requests: simpler HTTP client for test_pipeline.py.
+websockets>=12.0
+requests>=2.31

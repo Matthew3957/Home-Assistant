@@ -1,0 +1,402 @@
+# overlays/packages/test_devices.yaml
+#
+# Dummy entities representing a realistic 2-person household. The point is
+# to give the LLM a non-trivial state space to query and manipulate during
+# the Assist bake-off.
+#
+# Implementation strategy:
+#   * Lights         -> input_boolean + input_number (brightness) backing a
+#                       template light. Lets the LLM toggle AND set brightness.
+#   * Climate        -> input_boolean (heater backing) + input_number (sensor)
+#                       feeding a generic_thermostat. Each thermostat needs a
+#                       sensor and a switchable heater entity, so we fake both.
+#   * Locks          -> input_boolean backing a template lock.
+#   * Switches       -> raw input_boolean (HA exposes input_booleans to Assist
+#                       as switch-like; no template wrapper required).
+#   * Sensors        -> template sensors driven by input_numbers (so you can
+#                       force a value from Developer Tools).
+#   * Media players  -> demo platform. The `demo` integration provides
+#                       fake media_player entities; we rename them to match
+#                       our naming via customize.
+#
+# Feel free to swap any of these for real integrations later (Hue, Sonos,
+# ecobee, etc.). The entity_ids here are what the Assist prompts will see.
+
+# ---------------------------------------------------------------------------
+# Backing input_booleans and input_numbers for the templated entities
+# ---------------------------------------------------------------------------
+input_boolean:
+  # Light state backing
+  light_kitchen_pendant_state:
+    name: "[backing] Kitchen pendant on/off"
+  light_living_room_floor_state:
+    name: "[backing] Living room floor on/off"
+  light_bedroom_main_state:
+    name: "[backing] Bedroom main on/off"
+  light_bedroom_lamp_state:
+    name: "[backing] Bedroom lamp on/off"
+  light_bathroom_main_state:
+    name: "[backing] Bathroom main on/off"
+  light_office_overhead_state:
+    name: "[backing] Office overhead on/off"
+  light_patio_string_state:
+    name: "[backing] Patio string on/off"
+  light_hallway_main_state:
+    name: "[backing] Hallway main on/off"
+
+  # Lock state (true == locked)
+  lock_front_door_state:
+    name: "[backing] Front door locked"
+    initial: true
+  lock_back_door_state:
+    name: "[backing] Back door locked"
+    initial: true
+
+  # Plain switches — exposed directly to Assist via the input_boolean domain.
+  # (Assist's default exposure rules treat input_boolean as user-controllable.)
+  coffee_maker:
+    name: "Coffee maker"
+    icon: mdi:coffee-maker
+  dishwasher:
+    name: "Dishwasher"
+    icon: mdi:dishwasher
+  washer:
+    name: "Washer"
+    icon: mdi:washing-machine
+
+  # Read-only-ish package indicator. Could be flipped manually for tests.
+  package_arrived_state:
+    name: "[backing] Package arrived"
+
+  # Climate backing — these stand in for "the heater is on" for the
+  # generic_thermostat platform.
+  climate_living_room_heater_state:
+    name: "[backing] Living room heater"
+  climate_bedroom_heater_state:
+    name: "[backing] Bedroom heater"
+
+input_number:
+  # Light brightness backing (0–255 to match HA's native range)
+  light_kitchen_pendant_brightness:
+    name: "[backing] Kitchen pendant brightness"
+    min: 0
+    max: 255
+    step: 1
+    initial: 200
+  light_living_room_floor_brightness:
+    name: "[backing] Living room floor brightness"
+    min: 0
+    max: 255
+    step: 1
+    initial: 180
+  light_bedroom_main_brightness:
+    name: "[backing] Bedroom main brightness"
+    min: 0
+    max: 255
+    step: 1
+    initial: 150
+  light_bedroom_lamp_brightness:
+    name: "[backing] Bedroom lamp brightness"
+    min: 0
+    max: 255
+    step: 1
+    initial: 80
+  light_bathroom_main_brightness:
+    name: "[backing] Bathroom main brightness"
+    min: 0
+    max: 255
+    step: 1
+    initial: 220
+  light_office_overhead_brightness:
+    name: "[backing] Office overhead brightness"
+    min: 0
+    max: 255
+    step: 1
+    initial: 240
+  light_patio_string_brightness:
+    name: "[backing] Patio string brightness"
+    min: 0
+    max: 255
+    step: 1
+    initial: 100
+  light_hallway_main_brightness:
+    name: "[backing] Hallway main brightness"
+    min: 0
+    max: 255
+    step: 1
+    initial: 160
+
+  # Sensor backing — change these in Developer Tools to test LLM responses.
+  outdoor_temperature_value:
+    name: "[backing] Outdoor temperature (°F)"
+    min: -20
+    max: 130
+    step: 0.1
+    initial: 64.0
+    unit_of_measurement: "°F"
+  indoor_humidity_value:
+    name: "[backing] Indoor humidity (%)"
+    min: 0
+    max: 100
+    step: 1
+    initial: 42
+    unit_of_measurement: "%"
+
+  # Generic_thermostat needs a temperature sensor input. We fake it.
+  living_room_temperature_value:
+    name: "[backing] Living room temperature (°F)"
+    min: 40
+    max: 95
+    step: 0.5
+    initial: 70
+    unit_of_measurement: "°F"
+  bedroom_temperature_value:
+    name: "[backing] Bedroom temperature (°F)"
+    min: 40
+    max: 95
+    step: 0.5
+    initial: 68
+    unit_of_measurement: "°F"
+
+# ---------------------------------------------------------------------------
+# Template lights — wrap each input_boolean+brightness pair as a real light
+# ---------------------------------------------------------------------------
+# Naming convention: light.<area>_<role>. The "name:" attribute is what the
+# LLM sees in its entity list, so keep them human-friendly.
+light:
+  - platform: template
+    lights:
+      kitchen_pendant:
+        friendly_name: "Kitchen pendant"
+        value_template: "{{ is_state('input_boolean.light_kitchen_pendant_state', 'on') }}"
+        level_template: "{{ states('input_number.light_kitchen_pendant_brightness') | int(0) }}"
+        turn_on:
+          - service: input_boolean.turn_on
+            target: { entity_id: input_boolean.light_kitchen_pendant_state }
+        turn_off:
+          - service: input_boolean.turn_off
+            target: { entity_id: input_boolean.light_kitchen_pendant_state }
+        set_level:
+          - service: input_number.set_value
+            target: { entity_id: input_number.light_kitchen_pendant_brightness }
+            data: { value: "{{ brightness }}" }
+          - service: input_boolean.turn_on
+            target: { entity_id: input_boolean.light_kitchen_pendant_state }
+
+      living_room_floor:
+        friendly_name: "Living room floor lamp"
+        value_template: "{{ is_state('input_boolean.light_living_room_floor_state', 'on') }}"
+        level_template: "{{ states('input_number.light_living_room_floor_brightness') | int(0) }}"
+        turn_on:
+          - service: input_boolean.turn_on
+            target: { entity_id: input_boolean.light_living_room_floor_state }
+        turn_off:
+          - service: input_boolean.turn_off
+            target: { entity_id: input_boolean.light_living_room_floor_state }
+        set_level:
+          - service: input_number.set_value
+            target: { entity_id: input_number.light_living_room_floor_brightness }
+            data: { value: "{{ brightness }}" }
+          - service: input_boolean.turn_on
+            target: { entity_id: input_boolean.light_living_room_floor_state }
+
+      bedroom_main:
+        friendly_name: "Bedroom main light"
+        value_template: "{{ is_state('input_boolean.light_bedroom_main_state', 'on') }}"
+        level_template: "{{ states('input_number.light_bedroom_main_brightness') | int(0) }}"
+        turn_on:
+          - service: input_boolean.turn_on
+            target: { entity_id: input_boolean.light_bedroom_main_state }
+        turn_off:
+          - service: input_boolean.turn_off
+            target: { entity_id: input_boolean.light_bedroom_main_state }
+        set_level:
+          - service: input_number.set_value
+            target: { entity_id: input_number.light_bedroom_main_brightness }
+            data: { value: "{{ brightness }}" }
+          - service: input_boolean.turn_on
+            target: { entity_id: input_boolean.light_bedroom_main_state }
+
+      bedroom_lamp:
+        friendly_name: "Bedroom nightstand lamp"
+        value_template: "{{ is_state('input_boolean.light_bedroom_lamp_state', 'on') }}"
+        level_template: "{{ states('input_number.light_bedroom_lamp_brightness') | int(0) }}"
+        turn_on:
+          - service: input_boolean.turn_on
+            target: { entity_id: input_boolean.light_bedroom_lamp_state }
+        turn_off:
+          - service: input_boolean.turn_off
+            target: { entity_id: input_boolean.light_bedroom_lamp_state }
+        set_level:
+          - service: input_number.set_value
+            target: { entity_id: input_number.light_bedroom_lamp_brightness }
+            data: { value: "{{ brightness }}" }
+          - service: input_boolean.turn_on
+            target: { entity_id: input_boolean.light_bedroom_lamp_state }
+
+      bathroom_main:
+        friendly_name: "Bathroom main light"
+        value_template: "{{ is_state('input_boolean.light_bathroom_main_state', 'on') }}"
+        level_template: "{{ states('input_number.light_bathroom_main_brightness') | int(0) }}"
+        turn_on:
+          - service: input_boolean.turn_on
+            target: { entity_id: input_boolean.light_bathroom_main_state }
+        turn_off:
+          - service: input_boolean.turn_off
+            target: { entity_id: input_boolean.light_bathroom_main_state }
+        set_level:
+          - service: input_number.set_value
+            target: { entity_id: input_number.light_bathroom_main_brightness }
+            data: { value: "{{ brightness }}" }
+          - service: input_boolean.turn_on
+            target: { entity_id: input_boolean.light_bathroom_main_state }
+
+      office_overhead:
+        friendly_name: "Office overhead light"
+        value_template: "{{ is_state('input_boolean.light_office_overhead_state', 'on') }}"
+        level_template: "{{ states('input_number.light_office_overhead_brightness') | int(0) }}"
+        turn_on:
+          - service: input_boolean.turn_on
+            target: { entity_id: input_boolean.light_office_overhead_state }
+        turn_off:
+          - service: input_boolean.turn_off
+            target: { entity_id: input_boolean.light_office_overhead_state }
+        set_level:
+          - service: input_number.set_value
+            target: { entity_id: input_number.light_office_overhead_brightness }
+            data: { value: "{{ brightness }}" }
+          - service: input_boolean.turn_on
+            target: { entity_id: input_boolean.light_office_overhead_state }
+
+      patio_string:
+        friendly_name: "Patio string lights"
+        value_template: "{{ is_state('input_boolean.light_patio_string_state', 'on') }}"
+        level_template: "{{ states('input_number.light_patio_string_brightness') | int(0) }}"
+        turn_on:
+          - service: input_boolean.turn_on
+            target: { entity_id: input_boolean.light_patio_string_state }
+        turn_off:
+          - service: input_boolean.turn_off
+            target: { entity_id: input_boolean.light_patio_string_state }
+        set_level:
+          - service: input_number.set_value
+            target: { entity_id: input_number.light_patio_string_brightness }
+            data: { value: "{{ brightness }}" }
+          - service: input_boolean.turn_on
+            target: { entity_id: input_boolean.light_patio_string_state }
+
+      hallway_main:
+        friendly_name: "Hallway light"
+        value_template: "{{ is_state('input_boolean.light_hallway_main_state', 'on') }}"
+        level_template: "{{ states('input_number.light_hallway_main_brightness') | int(0) }}"
+        turn_on:
+          - service: input_boolean.turn_on
+            target: { entity_id: input_boolean.light_hallway_main_state }
+        turn_off:
+          - service: input_boolean.turn_off
+            target: { entity_id: input_boolean.light_hallway_main_state }
+        set_level:
+          - service: input_number.set_value
+            target: { entity_id: input_number.light_hallway_main_brightness }
+            data: { value: "{{ brightness }}" }
+          - service: input_boolean.turn_on
+            target: { entity_id: input_boolean.light_hallway_main_state }
+
+# ---------------------------------------------------------------------------
+# Template locks — front and back door
+# ---------------------------------------------------------------------------
+lock:
+  - platform: template
+    name: "Front door"
+    value_template: "{{ is_state('input_boolean.lock_front_door_state', 'on') }}"
+    lock:
+      service: input_boolean.turn_on
+      target: { entity_id: input_boolean.lock_front_door_state }
+    unlock:
+      service: input_boolean.turn_off
+      target: { entity_id: input_boolean.lock_front_door_state }
+  - platform: template
+    name: "Back door"
+    value_template: "{{ is_state('input_boolean.lock_back_door_state', 'on') }}"
+    lock:
+      service: input_boolean.turn_on
+      target: { entity_id: input_boolean.lock_back_door_state }
+    unlock:
+      service: input_boolean.turn_off
+      target: { entity_id: input_boolean.lock_back_door_state }
+
+# ---------------------------------------------------------------------------
+# Climate — generic_thermostat per room
+# ---------------------------------------------------------------------------
+# generic_thermostat needs:
+#   heater: a switch-like entity it can turn on/off
+#   target_sensor: a sensor entity reporting the current temperature
+# We back both with input_boolean / template sensor so the whole stack is
+# self-contained and doesn't require any real hardware.
+climate:
+  - platform: generic_thermostat
+    name: "Living room thermostat"
+    heater: input_boolean.climate_living_room_heater_state
+    target_sensor: sensor.living_room_temperature
+    min_temp: 55
+    max_temp: 85
+    target_temp: 70
+    cold_tolerance: 0.5
+    hot_tolerance: 0.5
+  - platform: generic_thermostat
+    name: "Bedroom thermostat"
+    heater: input_boolean.climate_bedroom_heater_state
+    target_sensor: sensor.bedroom_temperature
+    min_temp: 55
+    max_temp: 85
+    target_temp: 68
+    cold_tolerance: 0.5
+    hot_tolerance: 0.5
+
+# ---------------------------------------------------------------------------
+# Template sensors — read-only entities the LLM can query
+# ---------------------------------------------------------------------------
+# Driven by input_numbers above, so you can simulate weather changes etc.
+# from Developer Tools without restarting HA.
+template:
+  - sensor:
+      - name: "Outdoor temperature"
+        unit_of_measurement: "°F"
+        device_class: temperature
+        state: "{{ states('input_number.outdoor_temperature_value') }}"
+      - name: "Indoor humidity"
+        unit_of_measurement: "%"
+        device_class: humidity
+        state: "{{ states('input_number.indoor_humidity_value') }}"
+      - name: "Living room temperature"
+        unit_of_measurement: "°F"
+        device_class: temperature
+        state: "{{ states('input_number.living_room_temperature_value') }}"
+      - name: "Bedroom temperature"
+        unit_of_measurement: "°F"
+        device_class: temperature
+        state: "{{ states('input_number.bedroom_temperature_value') }}"
+
+  - binary_sensor:
+      - name: "Package arrived"
+        device_class: occupancy
+        state: "{{ is_state('input_boolean.package_arrived_state', 'on') }}"
+
+# ---------------------------------------------------------------------------
+# Media players — use the demo platform
+# ---------------------------------------------------------------------------
+# `demo` enables a handful of fake media_player entities at startup. Their
+# entity_ids vary by HA version (e.g. media_player.bedroom,
+# media_player.living_room, media_player.lounge_room, media_player.walkman).
+# After the first start, run:
+#   docker exec homeassistant python -c \
+#     "import json,urllib.request,os;print('see Developer Tools > States')"
+# or just open http://localhost:8123/developer-tools/state and filter on
+# `media_player.` to see what was created. configure_assist.sh exposes
+# everything in the media_player domain to Assist, so the model can target
+# whatever exists by spoken name.
+#
+# Friendly-name overrides for these entities live in
+# configuration_additions.yaml (single `homeassistant:` block).
+media_player:
+  - platform: demo
