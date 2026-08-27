@@ -1,0 +1,98 @@
+# overlays/packages/evening_routine.yaml
+#
+# Evening downstairs routine.
+#
+# Setup note (2026-08): the dining room switch now has a NON-smart lamp
+# plugged into it, so the switch itself is the thing to control — flipping
+# it on/off turns the lamp on/off. A dumb lamp can't dim, which is why at
+# 9 PM the two downstairs smart lights dim while the dining room switch
+# simply turns off.
+#
+# Entities added here:
+#   * "Dining room switch" -> plain input_boolean, same pattern as the
+#     coffee maker / dishwasher switches in test_devices.yaml.
+#   * "Apple TV"           -> universal media_player backed by an
+#     input_boolean, so automations (and Assist) can turn it on/off.
+#
+# Schedule (local time, HA instance timezone):
+#   18:30  dining room switch ON together with both downstairs lights
+#   21:00  downstairs lights DIM to 30%, dining room switch OFF
+#   21:15  Apple TV OFF
+#
+# "The other 2 downstairs lights" are taken to be the kitchen pendant and
+# the living room floor lamp. If that's wrong, adjust DOWNSTAIRS light
+# entity_ids in the two automations below.
+
+input_boolean:
+  dining_room_switch:
+    name: "Dining room switch"
+    icon: mdi:lamp
+
+  # Backing state for the fake Apple TV media_player below.
+  apple_tv_power_state:
+    name: "[backing] Apple TV power"
+
+media_player:
+  - platform: universal
+    name: "Apple TV"
+    unique_id: apple_tv
+    device_class: tv
+    commands:
+      turn_on:
+        service: input_boolean.turn_on
+        target: { entity_id: input_boolean.apple_tv_power_state }
+      turn_off:
+        service: input_boolean.turn_off
+        target: { entity_id: input_boolean.apple_tv_power_state }
+    attributes:
+      state: input_boolean.apple_tv_power_state
+
+automation:
+  - id: evening_downstairs_on
+    alias: "Evening: downstairs lights + dining room switch on"
+    description: >-
+      At 6:30 PM turn on the two downstairs lights and the dining room
+      switch (dumb lamp) together.
+    trigger:
+      - platform: time
+        at: "18:30:00"
+    action:
+      - service: light.turn_on
+        target:
+          entity_id:
+            - light.kitchen_pendant
+            - light.living_room_floor
+      - service: input_boolean.turn_on
+        target:
+          entity_id: input_boolean.dining_room_switch
+
+  - id: evening_downstairs_dim
+    alias: "Evening: dim downstairs lights, dining room switch off"
+    description: >-
+      At 9 PM dim the two downstairs lights to 30%. The dining room lamp
+      can't dim (dumb bulb on a switch), so its switch turns off instead.
+    trigger:
+      - platform: time
+        at: "21:00:00"
+    action:
+      - service: light.turn_on
+        target:
+          entity_id:
+            - light.kitchen_pendant
+            - light.living_room_floor
+        data:
+          brightness_pct: 30
+      - service: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.dining_room_switch
+
+  - id: evening_apple_tv_off
+    alias: "Evening: Apple TV off"
+    description: "At 9:15 PM turn the Apple TV off."
+    trigger:
+      - platform: time
+        at: "21:15:00"
+    action:
+      - service: media_player.turn_off
+        target:
+          entity_id: media_player.apple_tv

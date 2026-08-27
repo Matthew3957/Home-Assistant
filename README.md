@@ -114,6 +114,7 @@ You can also do it manually in the UI:
 ├── overlays/
 │   ├── configuration_additions.yaml   appended to configuration.yaml
 │   └── packages/
+│       ├── evening_routine.yaml       dining room switch, Apple TV, evening automations
 │       ├── test_devices.yaml          lights, climate, locks, switches, etc.
 │       └── test_helpers.yaml          shopping list + upcoming events
 └── homeassistant-config/              [gitignored] HA persistent state
